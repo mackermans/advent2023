@@ -3,8 +3,17 @@ use std::{cmp::PartialEq, collections::HashMap, fmt};
 pub fn run() {
     let input = include_str!("./input.txt");
     let parsed_input = parse_input(input);
-    let sum = parse_games(parsed_input);
+
+    let upper_limit_cube_set = CubeSet {
+        red: 12,
+        blue: 14,
+        green: 13,
+    };
+    let sum = parse_games_possible(&parsed_input, &upper_limit_cube_set);
     println!("2-1: {}", sum);
+
+    let power = parse_games_power(&parsed_input);
+    println!("2-2: {}", power);
 }
 
 #[derive(PartialEq)]
@@ -19,6 +28,10 @@ impl CubeSet {
         self.red <= upper_limit.red
             && self.blue <= upper_limit.blue
             && self.green <= upper_limit.green
+    }
+
+    fn get_power(&self) -> usize {
+        self.red * self.blue * self.green
     }
 }
 
@@ -44,24 +57,52 @@ impl Game {
             .iter()
             .all(|cube_set| cube_set.is_possible(upper_limit_cube_set))
     }
+
+    fn get_upper_limit(&self) -> CubeSet {
+        let mut upper_limit = CubeSet {
+            red: 0,
+            blue: 0,
+            green: 0,
+        };
+        self.cube_sets.iter().for_each(|set| {
+            if set.red > upper_limit.red {
+                upper_limit.red = set.red;
+            }
+            if set.blue > upper_limit.blue {
+                upper_limit.blue = set.blue;
+            }
+            if set.green > upper_limit.green {
+                upper_limit.green = set.green;
+            }
+        });
+
+        upper_limit
+    }
 }
 
-fn parse_games(input: Vec<&str>) -> usize {
-    let upper_limit = CubeSet {
-        red: 12,
-        blue: 14,
-        green: 13,
-    };
+fn parse_games_possible(input: &[&str], upper_limit: &CubeSet) -> usize {
     input.iter().fold(0, |acc, &line| {
         if !line.contains(':') {
             return acc;
         }
 
         let game = parse_line(line);
-        match game.is_possible(&upper_limit) {
+        match game.is_possible(upper_limit) {
             true => acc + game.id,
             false => acc,
         }
+    })
+}
+
+fn parse_games_power(input: &[&str]) -> usize {
+    input.iter().fold(0, |acc, &line| {
+        if !line.contains(':') {
+            return acc;
+        }
+
+        let game = parse_line(line);
+        let upper_limit = game.get_upper_limit();
+        acc + upper_limit.get_power()
     })
 }
 
@@ -138,10 +179,34 @@ Game 3: 8 green, 6 blue, 20 red; 5 blue, 4 red, 13 green; 5 green, 1 red
 Game 4: 1 green, 3 red, 6 blue; 3 green, 6 red; 3 green, 15 blue, 14 red
 Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green
 "#,
+        CubeSet {
+        red: 12,
+        blue: 14,
+        green: 13,
+    },
         8
     )]
-    fn test_parse_games(#[case] input: &str, #[case] sum: usize) {
+    fn test_parse_games_possible(
+        #[case] input: &str,
+        #[case] upper_limit: CubeSet,
+        #[case] sum: usize,
+    ) {
         let parsed_input = parse_input(input);
-        assert_eq!(parse_games(parsed_input), sum);
+        assert_eq!(parse_games_possible(&parsed_input, &upper_limit), sum);
+    }
+
+    #[rstest]
+    #[case(
+        r#"Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green
+Game 2: 1 blue, 2 green; 3 green, 4 blue, 1 red; 1 green, 1 blue
+Game 3: 8 green, 6 blue, 20 red; 5 blue, 4 red, 13 green; 5 green, 1 red
+Game 4: 1 green, 3 red, 6 blue; 3 green, 6 red; 3 green, 15 blue, 14 red
+Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green
+"#,
+        2286
+    )]
+    fn test_parse_games_power(#[case] input: &str, #[case] power: usize) {
+        let parsed_input = parse_input(input);
+        assert_eq!(parse_games_power(&parsed_input), power);
     }
 }
